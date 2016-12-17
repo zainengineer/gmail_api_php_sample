@@ -1,11 +1,9 @@
-
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-
 define('APPLICATION_NAME', 'Gmail API PHP Quickstart');
 define('CREDENTIALS_PATH', '~/.credentials/gmail-php-quickstart.json');
-define('CLIENT_SECRET_PATH', __DIR__ . '/client_secret.json');
+define('CLIENT_SECRET_PATH', expandHomeDirectory('~/.credentials/client_secret.json'));
 // If modifying these scopes, delete your previously saved credentials
 // at ~/.credentials/gmail-php-quickstart.json
 define('SCOPES', implode(' ', array(
@@ -13,7 +11,14 @@ define('SCOPES', implode(' ', array(
 ));
 
 if (php_sapi_name() != 'cli') {
-    throw new Exception('This application must be run on the command line.');
+    if (empty($_GET['code'])){
+        die("use it from command line");
+    }
+    else{
+        die('paste following code: ' . htmlentities($_GET['code']));
+    }
+
+    //throw new Exception('This application must be run on the command line.');
 }
 
 /**
@@ -26,6 +31,8 @@ function getClient() {
     $client->setScopes(SCOPES);
     $client->setAuthConfig(CLIENT_SECRET_PATH);
     $client->setAccessType('offline');
+
+    $client->setRedirectUri('http://gmail.local.com');
 
     // Load previously authorized credentials from a file.
     $credentialsPath = expandHomeDirectory(CREDENTIALS_PATH);
