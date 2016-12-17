@@ -1,0 +1,13 @@
+{
+    "name": "zainengineer/gmail",
+    "description": "Gmail for peronal use",
+    "require": {
+        "google/apiclient": "^2.0"
+    },
+    "authors": [
+        {
+            "name": "Zain ul abidin",
+            "email": "zainengineer@gmail.com"
+        }
+    ]
+}
