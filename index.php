@@ -66,6 +66,9 @@ function getClient() {
 
     // Refresh the token if it's expired.
     if ($client->isAccessTokenExpired()) {
+        if (!$client->getRefreshToken()){
+            throw new Exception('refresh token not found. delete ' . $credentialsPath);
+        }
         $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
         file_put_contents($credentialsPath, json_encode($client->getAccessToken()));
     }
@@ -85,23 +88,44 @@ function expandHomeDirectory($path) {
     return str_replace('~', realpath($homeDirectory), $path);
 }
 
-// Get the API client and construct the service object.
-$client = getClient();
-$service = new Google_Service_Gmail($client);
+function getUser()
+{
+    return $user = 'me';
+}
 
-// Print the labels in the user's account.
-$user = 'me';
-$results = $service->users_messages->listUsersMessages($user, [
+
+$results = getService()->users_messages->listUsersMessages(getUser(), [
     'q'=>'in:inbox',
     'maxResults'=>'500', //seems to be limit
 ]);
 
 $aMessages = $results->getMessages();
+
 $aMap = [];
 
 /** @var Google_Service_Gmail_Message $oMessage */
 foreach ($aMessages as $oMessage) {
-    $oMessage = $service->users_messages->get($user, $oMessage->getId(),[
+
+    $aHeaders = getMessageHeaders($oMessage);
+
+    getEmailsFromHeaderIndex($aMap,$aHeaders,'To');
+    getEmailsFromHeaderIndex($aMap,$aHeaders,'From');
+
+}
+function getService()
+{
+    static $service;
+    if (!$service){
+        // Get the API client and construct the service object.
+        $client = getClient();
+        $service = new Google_Service_Gmail($client);
+    }
+    return $service;
+}
+
+function getMessageHeaders(Google_Service_Gmail_Message $oMessage )
+{
+    $oMessage = getService()->users_messages->get(getUser(), $oMessage->getId(),[
         'format'=>'metadata',
         'metadataHeaders'=>['From', 'Subject','To'],
         //'metadataHeaders'=>'From',
@@ -109,6 +133,7 @@ foreach ($aMessages as $oMessage) {
     /** @var Google_Service_Gmail_MessagePart $oPayload */
     $oPayload = $oMessage->getPayload();
     $aHeadersApi = $oPayload->getHeaders();
+
     $aHeaders = [];
     /** @var Google_Service_Gmail_MessagePartHeader $oServiceHeader */
     foreach ($aHeadersApi as $oServiceHeader) {
@@ -116,10 +141,7 @@ foreach ($aMessages as $oMessage) {
         $HeaderValue = $oServiceHeader->getValue();
         $aHeaders[$vHeaderName] = $HeaderValue;
     }
-
-    getEmailsFromHeaderIndex($aMap,$aHeaders,'To');
-    getEmailsFromHeaderIndex($aMap,$aHeaders,'From');
-
+    return $aHeaders;
 }
 
 function showIndex($aMap,$vIndexName){
