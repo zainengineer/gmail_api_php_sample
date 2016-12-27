@@ -9,7 +9,12 @@ define('CLIENT_SECRET_PATH', expandHomeDirectory('~/.credentials/client_secret.j
 define('SCOPES', implode(' ', array(
         Google_Service_Gmail::GMAIL_READONLY)
 ));
-
+$vLocalConfig = dirname(__FILE__) . '/local.config.json';
+if (file_exists($vLocalConfig)){
+    $vLocalConfig = file_get_contents($vLocalConfig);
+    $aLocalConfig = json_decode($vLocalConfig,true);
+    $vLocalEmail = $aLocalConfig['email'];
+}
 if (php_sapi_name() != 'cli') {
     if (empty($_GET['code'])){
         die("use it from command line");
@@ -92,6 +97,8 @@ $results = $service->users_messages->listUsersMessages($user, [
 ]);
 
 $aMessages = $results->getMessages();
+$aMap = [];
+
 /** @var Google_Service_Gmail_Message $oMessage */
 foreach ($aMessages as $oMessage) {
     $oMessage = $service->users_messages->get($user, $oMessage->getId(),[
@@ -105,10 +112,61 @@ foreach ($aMessages as $oMessage) {
     $aHeaders = [];
     /** @var Google_Service_Gmail_MessagePartHeader $oServiceHeader */
     foreach ($aHeadersApi as $oServiceHeader) {
-        $aHeaders[$oServiceHeader->getName()] = $oServiceHeader->getValue();
+        $vHeaderName = $oServiceHeader->getName();
+        $HeaderValue = $oServiceHeader->getValue();
+        $aHeaders[$vHeaderName] = $HeaderValue;
     }
 
-    $debug = 1;
+    getEmailsFromHeaderIndex($aMap,$aHeaders,'To');
+    getEmailsFromHeaderIndex($aMap,$aHeaders,'From');
+
+}
+
+function showIndex($aMap,$vIndexName){
+    if (!isset($aMap[$vIndexName])){
+        echo "map not found $vIndexName\n";
+        return ;
+    }
+    $aDisplay = $aMap[$vIndexName];
+    asort($aDisplay);
+    $aDisplayReverse = array_reverse($aDisplay,true);
+    echo "Displaying $vIndexName\n";
+    print_r($aDisplayReverse);
+}
+showIndex($aMap, 'To');
+showIndex($aMap, 'From');
+
+function getEmailsFromHeaderIndex(&$aMap,$aHeaders,$vIndexName){
+    if (!isset($aHeaders[$vIndexName])){
+        return;
+    }
+    $aEmails = gmailEmailsFromText($aHeaders[$vIndexName]);
+    updateCountOfElement($aMap,$vIndexName, $aEmails);
+}
+function updateCountOfElement(&$aMap,$vIndex,$aData)
+{
+    global $vLocalEmail;
+    foreach ($aData as $vEmail) {
+        $vEmail = strtolower($vEmail);
+        if (($vIndex == 'To') && ($vEmail === $vLocalEmail)){
+            continue;
+        }
+        if (!isset($aMap[$vIndex][$vEmail])){
+            $aMap[$vIndex][$vEmail] = 0;
+        }
+        $aMap[$vIndex][$vEmail]++;
+    }
+}
+function gmailEmailsFromText($string)
+{
+    // this regex handles more email address formats like a+b@google.com.sg, and the i makes it case insensitive
+    //$pattern = '/[a-z0-9_\-\+]+@[a-z0-9\-]+\.([a-z]{2,3})(?:\.[a-z]{2})?/i';
+    $pattern = '/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}/';
+
+// preg_match_all returns an associative array
+    preg_match_all($pattern, $string, $matches);
+
+    return $matches[0];
 
 }
 
