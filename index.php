@@ -189,16 +189,23 @@ function showIndex($aMap,$vIndexName){
 
 function showGmailQuery($aDisplay,$vIndexName)
 {
+    $vSeparator = "";
+    echo "zainGmailTest.queries  = [";
     foreach ($aDisplay as $vEmail => $iCount) {
-        if ($iCount <3){
+        if ($iCount <2){
             continue;
         }
-        echo "in:inbox $vIndexName:$vEmail\n";
+        echo $vSeparator;
+        echo "'in:inbox $vIndexName:$vEmail'";
+        $vSeparator = ",\n";
     }
+    echo "];\n";
+    echo "zainGmailTest.queryIndex =-1\n";
+    echo "zainGmailTest.goNext();\n";
 
 }
 showIndex($aMap, 'From');
-showIndex($aMap, 'To');
+//showIndex($aMap, 'To');
 
 function getEmailsFromHeaderIndex(&$aMap,$aHeaders,$vIndexName,
                                   Google_Service_Gmail_Message $oMessage){

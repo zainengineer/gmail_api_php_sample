@@ -1,10 +1,6 @@
 zainGmailTest = {};
 
-zainGmailTest.queries = [
-    'in:inbox To:shah1936@example.com',
-    'in:inbox To:sak555@example.com',
-    'in:inbox To:aqil_sajjad@example.ca'
-];
+zainGmailTest.queries = [];
 zainGmailTest.queryIndex = -1;
 zainGmailTest.getInputElement = function () {
     if (!this.searchInput) {
@@ -42,17 +38,23 @@ zainGmailTest.simulateKeyPress = function (element) {
     //     0, 0, 0, 0,
     //     0, "e".charCodeAt(0));
     var typeArg = 'keypress';
-    var KeyboardEventInit = {key:"Enter"};
+    var KeyboardEventInit = {key: "Enter"};
     var evt = new KeyboardEvent(typeArg, KeyboardEventInit);
     element.dispatchEvent(evt);
 };
-zainGmailTest.getForm = function()
-{
+zainGmailTest.getForm = function () {
     var forms = document.getElementsByTagName("form");
     return forms[3];
 };
 zainGmailTest.clickButton = function () {
-    var searchButton  = document.getElementsByTagName("button")[0];
+    var searchButton = document.getElementsByTagName("button")[0];
     searchButton.click();
 };
-zainGmailTest.goNext();
+
+zainGmailTest.keyDownListener = function (event) {
+    if (event.ctrlKey && event.code == "Period") {
+        zainGmailTest.goNext();
+    }
+
+};
+document.addEventListener('keydown', zainGmailTest.keyDownListener);
