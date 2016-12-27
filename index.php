@@ -123,8 +123,32 @@ function getService()
     return $service;
 }
 
+function getCache($vKey)
+{
+    return @unserialize(file_get_contents(getCacheKeyPath($vKey)));
+}
+
+function putCache($vKey, $value)
+{
+
+    file_put_contents(getCacheKeyPath($vKey), serialize($value));
+}
+function getCacheKeyPath($vKey)
+{
+    $vDir = dirname(__FILE__) . '/.local/cache';
+    if (!file_exists($vDir)){
+        mkdir($vDir,0777,true);
+    }
+    $vFile = $vDir . '/' . sha1($vKey);
+    return $vFile;
+}
+
 function getMessageHeaders(Google_Service_Gmail_Message $oMessage )
 {
+    $vKey = 'message -' . $oMessage->getId();
+    if ($return = getCache($vKey)){
+        return $return;
+    }
     $oMessage = getService()->users_messages->get(getUser(), $oMessage->getId(),[
         'format'=>'metadata',
         'metadataHeaders'=>['From', 'Subject','To'],
@@ -141,6 +165,7 @@ function getMessageHeaders(Google_Service_Gmail_Message $oMessage )
         $HeaderValue = $oServiceHeader->getValue();
         $aHeaders[$vHeaderName] = $HeaderValue;
     }
+    putCache($vKey, $aHeaders);
     return $aHeaders;
 }
 
