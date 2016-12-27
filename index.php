@@ -29,7 +29,9 @@ function getClient() {
     $client = new Google_Client();
     $client->setApplicationName(APPLICATION_NAME);
     $client->setScopes(SCOPES);
-    $client->setAuthConfig(CLIENT_SECRET_PATH);
+    if (file_exists(CLIENT_SECRET_PATH)){
+        $client->setAuthConfig(CLIENT_SECRET_PATH);
+    }
     $client->setAccessType('offline');
 
     $client->setRedirectUri('http://gmail.local.com');
@@ -84,13 +86,29 @@ $service = new Google_Service_Gmail($client);
 
 // Print the labels in the user's account.
 $user = 'me';
-$results = $service->users_labels->listUsersLabels($user);
+$results = $service->users_messages->listUsersMessages($user, [
+    'q'=>'in:inbox',
+    'maxResults'=>'500', //seems to be limit
+]);
 
-if (count($results->getLabels()) == 0) {
-    print "No labels found.\n";
-} else {
-    print "Labels:\n";
-    foreach ($results->getLabels() as $label) {
-        printf("- %s\n", $label->getName());
+$aMessages = $results->getMessages();
+/** @var Google_Service_Gmail_Message $oMessage */
+foreach ($aMessages as $oMessage) {
+    $oMessage = $service->users_messages->get($user, $oMessage->getId(),[
+        'format'=>'metadata',
+        'metadataHeaders'=>['From', 'Subject','To'],
+        //'metadataHeaders'=>'From',
+    ]);
+    /** @var Google_Service_Gmail_MessagePart $oPayload */
+    $oPayload = $oMessage->getPayload();
+    $aHeadersApi = $oPayload->getHeaders();
+    $aHeaders = [];
+    /** @var Google_Service_Gmail_MessagePartHeader $oServiceHeader */
+    foreach ($aHeadersApi as $oServiceHeader) {
+        $aHeaders[$oServiceHeader->getName()] = $oServiceHeader->getValue();
     }
+
+    $debug = 1;
+
 }
+
