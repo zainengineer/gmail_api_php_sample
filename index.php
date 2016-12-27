@@ -108,8 +108,8 @@ foreach ($aMessages as $oMessage) {
 
     $aHeaders = getMessageHeaders($oMessage);
 
-    getEmailsFromHeaderIndex($aMap,$aHeaders,'To');
-    getEmailsFromHeaderIndex($aMap,$aHeaders,'From');
+    getEmailsFromHeaderIndex($aMap,$aHeaders,'To',$oMessage);
+    getEmailsFromHeaderIndex($aMap,$aHeaders,'From',$oMessage);
 
 }
 function getService()
@@ -174,23 +174,42 @@ function showIndex($aMap,$vIndexName){
         echo "map not found $vIndexName\n";
         return ;
     }
-    $aDisplay = $aMap[$vIndexName];
+    $aToSummarize = $aMap[$vIndexName];
+    $aDisplay = [];
+    foreach ($aToSummarize as $vEmail => $aThreads) {
+        $aDisplay[$vEmail] = count($aThreads);
+    }
+
     asort($aDisplay);
     $aDisplayReverse = array_reverse($aDisplay,true);
-    echo "Displaying $vIndexName\n";
-    print_r($aDisplayReverse);
+    //echo "Displaying $vIndexName\n";
+    //print_r($aDisplayReverse);
+    showGmailQuery($aDisplayReverse, $vIndexName);
 }
-showIndex($aMap, 'To');
-showIndex($aMap, 'From');
 
-function getEmailsFromHeaderIndex(&$aMap,$aHeaders,$vIndexName){
+function showGmailQuery($aDisplay,$vIndexName)
+{
+    foreach ($aDisplay as $vEmail => $iCount) {
+        if ($iCount <3){
+            continue;
+        }
+        echo "in:inbox $vIndexName:$vEmail\n";
+    }
+
+}
+showIndex($aMap, 'From');
+showIndex($aMap, 'To');
+
+function getEmailsFromHeaderIndex(&$aMap,$aHeaders,$vIndexName,
+                                  Google_Service_Gmail_Message $oMessage){
     if (!isset($aHeaders[$vIndexName])){
         return;
     }
     $aEmails = gmailEmailsFromText($aHeaders[$vIndexName]);
-    updateCountOfElement($aMap,$vIndexName, $aEmails);
+    updateCountOfElement($aMap,$vIndexName, $aEmails,$oMessage);
 }
-function updateCountOfElement(&$aMap,$vIndex,$aData)
+function updateCountOfElement(&$aMap,$vIndex,$aData,
+                              Google_Service_Gmail_Message $oMessage)
 {
     global $vLocalEmail;
     foreach ($aData as $vEmail) {
@@ -199,9 +218,9 @@ function updateCountOfElement(&$aMap,$vIndex,$aData)
             continue;
         }
         if (!isset($aMap[$vIndex][$vEmail])){
-            $aMap[$vIndex][$vEmail] = 0;
+            $aMap[$vIndex][$vEmail] = [];
         }
-        $aMap[$vIndex][$vEmail]++;
+        $aMap[$vIndex][$vEmail][$oMessage->getThreadId()] = $oMessage->getThreadId();
     }
 }
 function gmailEmailsFromText($string)
