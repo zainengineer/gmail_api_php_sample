@@ -20,17 +20,19 @@ if (php_sapi_name() != 'cli') {
         die("use it from command line");
     }
     else{
+        $oClient = getBaseClient();
+        file_put_contents(getTempAuthPath(),$_GET['code']);
+        echo "Moved the auth code to temp, run the programing from CLI now<br/>\n";
         die('paste following code: ' . htmlentities($_GET['code']));
     }
 
     //throw new Exception('This application must be run on the command line.');
 }
-
 /**
- * Returns an authorized API client.
- * @return Google_Client the authorized client object
+ * @return Google_Client
  */
-function getClient() {
+function getBaseClient()
+{
     $client = new Google_Client();
     $client->setApplicationName(APPLICATION_NAME);
     $client->setScopes(SCOPES);
@@ -40,27 +42,76 @@ function getClient() {
     $client->setAccessType('offline');
 
     $client->setRedirectUri('http://gmail.local.com');
-
+    return $client;
+}
+function writeClientAuth(Google_Client $client,
+    $authCode)
+{
+    $credentialsPath = expandHomeDirectory(CREDENTIALS_PATH);
+    // Exchange authorization code for an access token.
+    $accessToken = $client->fetchAccessTokenWithAuthCode($authCode);
+    if (isset($accessToken['error'])){
+        print_r($accessToken);
+        $vTempPath = getTempAuthPath();
+        $vMessage = "";
+        if (file_exists($vTempPath)){
+            $vMessage = " and delete $vTempPath ";
+        }
+        echo "consider re-generating auth token $vMessage \n";
+        die;
+    }
+    // Store the credentials to disk.
+    if(!file_exists(dirname($credentialsPath))) {
+        mkdir(dirname($credentialsPath), 0700, true);
+    }
+    file_put_contents($credentialsPath, json_encode($accessToken));
+    printf("Credentials saved to %s\n", $credentialsPath);
+}
+function getTempAuthPath()
+{
+    $vDir = '/tmp/gmail';
+    $vFilePath = $vDir . '/tmp.auth';
+    if (!file_exists($vDir)) {
+        mkdir($vDir, 0777, true);
+        chmod($vDir, 0777);
+    }
+    return $vFilePath;
+}
+function moveCredentials()
+{
+    $credentialsPath = expandHomeDirectory(CREDENTIALS_PATH);
+    $vTempAuthPath = getTempAuthPath();
+    if (!file_exists($credentialsPath) &&
+    file_exists($vTempAuthPath)){
+        $vCredentials = file_get_contents($vTempAuthPath);
+        writeClientAuth(getBaseClient(),$vCredentials );
+        unlink($vTempAuthPath);
+        echo 'credentials moved rerun the program';
+        exit;
+    }
+}
+/**
+ * Returns an authorized API client.
+ * @return Google_Client the authorized client object
+ */
+function getClient() {
+    $client = getBaseClient();
     // Load previously authorized credentials from a file.
     $credentialsPath = expandHomeDirectory(CREDENTIALS_PATH);
     if (file_exists($credentialsPath)) {
         $accessToken = json_decode(file_get_contents($credentialsPath), true);
     } else {
+        moveCredentials();
         // Request authorization from the user.
         $authUrl = $client->createAuthUrl();
+        $vShellCommand = "x-www-browser \"$authUrl\"";
+        shell_exec($vShellCommand);
+        echo "Trying to directly open url by $vShellCommand\n";
         printf("Open the following link in your browser:\n%s\n", $authUrl);
         print 'Enter verification code: ';
         $authCode = trim(fgets(STDIN));
+        writeClientAuth($client, $authCode);
 
-        // Exchange authorization code for an access token.
-        $accessToken = $client->fetchAccessTokenWithAuthCode($authCode);
-
-        // Store the credentials to disk.
-        if(!file_exists(dirname($credentialsPath))) {
-            mkdir(dirname($credentialsPath), 0700, true);
-        }
-        file_put_contents($credentialsPath, json_encode($accessToken));
-        printf("Credentials saved to %s\n", $credentialsPath);
     }
     $client->setAccessToken($accessToken);
 
