@@ -118,7 +118,8 @@ function getClient() {
     // Refresh the token if it's expired.
     if ($client->isAccessTokenExpired()) {
         if (!$client->getRefreshToken()){
-            throw new Exception('refresh token not found. delete ' . $credentialsPath);
+            unlink($credentialsPath);
+            throw new Exception('refresh token not found. deleted ' . $credentialsPath . ' retry');
         }
         $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
         file_put_contents($credentialsPath, json_encode($client->getAccessToken()));
