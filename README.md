@@ -8,7 +8,8 @@
 * Make sure you setup a local domain like gmail.local.com (hard coded in my example code)
 
 Execution
-* php index.php
+* `php index.php`
+  * might need to run multiple times as it sets up different things in each step
 * follow instructions
 
 Setup js
