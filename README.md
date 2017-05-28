@@ -13,7 +13,7 @@ Execution
 * follow instructions
 
 Setup js
-* Run something like `php index.php > output.txt`
+* Run something like `php index.php > output.js`
 * open gmail developer console
 * copy js from `manual_execute.js`
 * copy js from output.txt
