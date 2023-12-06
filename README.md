@@ -25,7 +25,7 @@ Misc
 
 
 Setup js
-* Run something like `php index.php > output.js`
+* Run something like `php index.php`
 * open gmail developer console
 * copy js from `manual_execute.js`
 * copy js from output.txt

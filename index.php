@@ -125,7 +125,7 @@ function getClient() {
     if ($client->isAccessTokenExpired()) {
         if (!$client->getRefreshToken()){
             unlink($credentialsPath);
-            throw new Exception('refresh token not found. deleted ' . $credentialsPath . ' retry');
+            throw new Exception('refresh token not found. deleted ' . $credentialsPath . ' ReRun CLI');
         }
         $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
         file_put_contents($credentialsPath, json_encode($client->getAccessToken()));
@@ -151,28 +151,57 @@ function getUser()
     return $user = 'me';
 }
 
-fwrite(STDERR, "about to get emails 500 at a time\n\n");
+
+function getOnePage(string $pageToken, int $maxLimit, &$aMap)
+{
+    fwrite(STDERR, "about to get emails $maxLimit at a time\n");
 
 
-$results = getService()->users_messages->listUsersMessages(getUser(), [
-    'q'=>'in:inbox',
-    'maxResults'=>'500', //seems to be the limit
-]);
-fwrite(STDERR, "emails retrieved\n\n");
-$aMessages = $results->getMessages();
-fwrite(STDERR, "message list retrieved \n\n");
+    $param = [
+        'q'=>'in:inbox',
+        'maxResults'=>$maxLimit,
+    ];
+    if ($pageToken){
+        $param['pageToken']  = $pageToken;
+    }
+    $results = getService()->users_messages->listUsersMessages(getUser(), $param);
+    fwrite(STDERR, "emails retrieved\n");
+    $aMessages = $results->getMessages();
+    fwrite(STDERR, "message list retrieved \n");
 
-$aMap = [];
 
-/** @var Google_Service_Gmail_Message $oMessage */
-foreach ($aMessages as $oMessage) {
+    /** @var Google_Service_Gmail_Message $oMessage */
+    foreach ($aMessages as $oMessage) {
 
-    $aHeaders = getMessageHeaders($oMessage);
+        $aHeaders = getMessageHeaders($oMessage);
 
-    getEmailsFromHeaderIndex($aMap,$aHeaders,'To',$oMessage);
-    getEmailsFromHeaderIndex($aMap,$aHeaders,'From',$oMessage);
+        getEmailsFromHeaderIndex($aMap,$aHeaders,'To',$oMessage);
+        getEmailsFromHeaderIndex($aMap,$aHeaders,'From',$oMessage);
+
+    }
+    return $results->getNextPageToken();
 
 }
+function getPages(array &$aMap)
+{
+    //MaxAllowed is 500
+    $maxLimit = 500;
+//    $pagesToGet = 15;
+    $pagesToGet = 2;
+    $pageToken = "";
+    $pageCounter =0;
+    while ($pageCounter++ < $pagesToGet){
+        fwrite(STDERR, "\ngoing for page number $pageCounter\n");
+        $pageToken = getOnePage($pageToken,$maxLimit,$aMap);
+        showIndex($aMap, 'From');
+        if (!$pageToken){
+            return ;
+        }
+    }
+}
+$aMap = [];
+getPages($aMap);
+
 fwrite(STDERR,"all individual messages retrieved\n\n");
 
 function getService()
@@ -245,26 +274,36 @@ function showIndex($aMap,$vIndexName){
 
     asort($aDisplay);
     $aDisplayReverse = array_reverse($aDisplay,true);
+    file_put_contents(__DIR__ . '/array_output.txt', print_r($aDisplayReverse,true));
+    $aDisplayReverse =array_slice($aDisplayReverse,0,100);
     //echo "Displaying $vIndexName\n";
     //print_r($aDisplayReverse);
     showGmailQuery($aDisplayReverse, $vIndexName);
 }
 
+function appendLineToOutput($content)
+{
+    if ($content ==""){
+        file_put_contents(__DIR__ . '/output.js',"");
+    }
+    else{
+        file_put_contents(__DIR__ . '/output.js',$content,FILE_APPEND);
+    }
+}
 function showGmailQuery($aDisplay,$vIndexName)
 {
+    appendLineToOutput ("");
     $vSeparator = "";
-    echo "zainGmailTest.queries  = [";
+    appendLineToOutput ("zainGmailTest.queries  = [");
     foreach ($aDisplay as $vEmail => $iCount) {
         if ($iCount <2){
             continue;
         }
-        echo $vSeparator;
-        echo "'in:inbox $vIndexName:$vEmail'";
+        $vSeparator &&  appendLineToOutput ($vSeparator) ;
+        appendLineToOutput("'in:inbox $vIndexName:$vEmail'") ;
         $vSeparator = ",\n";
     }
-    echo "];\n";
-    echo "zainGmailTest.queryIndex =-1\n";
-    echo "zainGmailTest.goNext();\n";
+    appendLineToOutput("];\nzainGmailTest.queryIndex =-1\nzainGmailTest.goNext();\n");
 
 }
 showIndex($aMap, 'From');
