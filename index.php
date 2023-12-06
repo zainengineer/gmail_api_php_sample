@@ -33,11 +33,15 @@ if (php_sapi_name() != 'cli') {
  */
 function getBaseClient()
 {
+    global $vLocalEmail;
     $client = new Google_Client();
     $client->setApplicationName(APPLICATION_NAME);
     $client->setScopes(SCOPES);
     if (file_exists(CLIENT_SECRET_PATH)){
         $client->setAuthConfig(CLIENT_SECRET_PATH);
+    }
+    if (!empty($vLocalEmail)){
+        $client->setconfig('subject',$vLocalEmail);
     }
     $client->setAccessType('offline');
 
@@ -111,6 +115,8 @@ function getClient() {
         print 'Enter verification code: ';
         $authCode = trim(fgets(STDIN));
         writeClientAuth($client, $authCode);
+        echo "Rerun the program";
+        die;
 
     }
     $client->setAccessToken($accessToken);
@@ -145,13 +151,16 @@ function getUser()
     return $user = 'me';
 }
 
+fwrite(STDERR, "about to get emails 500 at a time\n\n");
+
 
 $results = getService()->users_messages->listUsersMessages(getUser(), [
     'q'=>'in:inbox',
-    'maxResults'=>'500', //seems to be limit
+    'maxResults'=>'500', //seems to be the limit
 ]);
-
+fwrite(STDERR, "emails retrieved\n\n");
 $aMessages = $results->getMessages();
+fwrite(STDERR, "message list retrieved \n\n");
 
 $aMap = [];
 
@@ -164,6 +173,8 @@ foreach ($aMessages as $oMessage) {
     getEmailsFromHeaderIndex($aMap,$aHeaders,'From',$oMessage);
 
 }
+fwrite(STDERR,"all individual messages retrieved\n\n");
+
 function getService()
 {
     static $service;
